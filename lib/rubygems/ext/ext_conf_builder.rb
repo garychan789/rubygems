@@ -10,7 +10,7 @@ require 'tempfile'
 class Gem::Ext::ExtConfBuilder < Gem::Ext::Builder
   FileEntry = FileUtils::Entry_ # :nodoc:
 
-  def self.build(extension, directory, dest_path, results, args=[], lib_dir=nil)
+  def self.build(extension, dest_path, results, args=[], lib_dir=nil)
     # relative path required as some versions of mktmpdir return an absolute
     # path which breaks make if it includes a space in the name
     tmp_dest = get_relative_path(Dir.mktmpdir(".gem.", "."))
@@ -80,4 +80,3 @@ class Gem::Ext::ExtConfBuilder < Gem::Ext::Builder
   end
 
 end
-
