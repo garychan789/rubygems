@@ -41,6 +41,35 @@ module Kernel
 
     path = path.to_path if path.respond_to? :to_path
 
+    resolved_path = if path.start_with?('/')
+      path
+    else
+      rp = nil
+      $LOAD_PATH.each do |lp|
+        Gem.suffixes.each do |s|
+          full_path = File.join(lp, "#{path}#{s}")
+          if File.file?(full_path)
+            rp = full_path
+            break
+          end
+        end
+        break if rp
+      end
+      rp
+    end
+
+    if resolved_path
+      return if $LOADED_FEATURES.include?(resolved_path)
+      if spec = Gem.find_unresolved_default_spec(resolved_path)
+        Gem.remove_unresolved_default_spec(spec)
+        Kernel.send(:gem, spec.name)
+      else
+        # p "unable to find default spec #{path} w/ rp #{resolved_path}"
+      end
+      RUBYGEMS_ACTIVATION_MONITOR.exit
+      return gem_original_require(path)
+    end
+
     if spec = Gem.find_unresolved_default_spec(path)
       Gem.remove_unresolved_default_spec(spec)
       Kernel.send(:gem, spec.name)

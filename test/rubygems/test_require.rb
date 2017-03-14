@@ -80,6 +80,38 @@ class TestGemRequire < Gem::TestCase
     Object.send :remove_const, :HELLO if Object.const_defined? :HELLO
   end
 
+  # Providing -I on the commandline should always beat gems
+  def test_dash_i_beats_default_gems
+    a1 = new_default_spec "a", "1", {"b" => "= 1"}, "test_gem_require_a.rb"
+    b1 = new_default_spec "b", "1", {"c" => "> 0"}, "b/c.rb"
+    c1 = new_default_spec "c", "1", nil, "c/c.rb"
+    c2 = new_default_spec "c", "2", nil, "c/c.rb"
+
+    install_default_specs c1, c2, b1, a1
+
+    dir = Dir.mktmpdir("test_require", @tempdir)
+    dash_i_arg = File.join dir, 'lib'
+
+    c_rb = File.join dash_i_arg, 'c', 'c.rb'
+
+    FileUtils.mkdir_p File.dirname c_rb
+    File.open(c_rb, 'w') { |f| f.write "class Object; HELLO = 'world' end" }
+
+    lp = $LOAD_PATH.dup
+
+    # Pretend to provide a commandline argument that overrides a file in gem b
+    $LOAD_PATH.unshift dash_i_arg
+
+    assert_require 'test_gem_require_a'
+    assert_require 'b/c'
+    assert_require 'c/c' # this should be required from -I
+    assert_equal "world", ::Object::HELLO
+    assert_equal %w(a-1 b-1), loaded_spec_names
+  ensure
+    $LOAD_PATH.replace lp
+    Object.send :remove_const, :HELLO if Object.const_defined? :HELLO
+  end
+
   def test_concurrent_require
     skip 'deadlock' if /^1\.8\./ =~ RUBY_VERSION
 
@@ -173,17 +205,12 @@ class TestGemRequire < Gem::TestCase
 
     install_specs b1, b2, a1
 
-    require 'test_gem_require_a'
+    assert_require 'test_gem_require_a'
     assert_equal unresolved_names, ["b (>= 1)"]
 
     refute require('benchmark'), "benchmark should have already been loaded"
 
-    # We detected that we should activate b-2, so we did so, but
-    # then original_require decided "I've already got benchmark.rb" loaded.
-    # This case is fine because our lazy loading is provided exactly
-    # the same behavior as eager loading would have.
-
-    assert_equal %w(a-1 b-2), loaded_spec_names
+    assert_equal %w(a-1), loaded_spec_names
   end
 
   def test_already_activated_direct_conflict

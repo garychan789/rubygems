@@ -800,10 +800,11 @@ class Gem::TestCase < MiniTest::Unit::TestCase
   def new_default_spec(name, version, deps = nil, *files)
     spec = util_spec name, version, deps
 
-    spec.loaded_from = File.join(@default_spec_dir, spec.spec_name)
-    spec.files = files
-
     lib_dir = File.join(@tempdir, "default_gems", "lib")
+
+    spec.loaded_from = File.join(@default_spec_dir, spec.spec_name)
+    spec.files = files.map {|f| File.join(lib_dir, f) }
+
     $LOAD_PATH.unshift(lib_dir)
     files.each do |file|
       rb_path = File.join(lib_dir, file)

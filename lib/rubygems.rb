@@ -5,7 +5,7 @@
 # All rights reserved.
 # See LICENSE.txt for permissions.
 #++
-
+require 'irb'
 require 'rbconfig'
 require 'thread'
 
@@ -1235,6 +1235,8 @@ An Array (#{env.inspect}) was passed in from #{caller[3]}
       suffix_pattern = /#{Regexp.union(Gem.suffixes)}\z/
 
       spec.files.each do |file|
+        @path_to_default_spec_map[File.join(spec.gem_dir, file)] = spec
+        @path_to_default_spec_map[File.join(spec.gem_dir, file.sub(suffix_pattern, ""))] = spec
         if new_format
           file = file.sub(prefix_pattern, "")
           next unless $~
