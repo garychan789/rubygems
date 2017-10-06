@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 ##
 # This module contains various utility methods as module methods.
 
@@ -24,7 +25,7 @@ module Gem::Util
   def self.gzip(data)
     require 'zlib'
     require 'stringio'
-    zipped = StringIO.new('','w')
+    zipped = StringIO.new(String.new, 'w')
     zipped.set_encoding Encoding::BINARY if Object.const_defined? :Encoding
 
     Zlib::GzipWriter.wrap zipped do |io| io.write data end
@@ -108,26 +109,15 @@ module Gem::Util
   ##
   # Enumerates the parents of +directory+.
 
-  def self.traverse_parents directory
+  def self.traverse_parents directory, &block
     return enum_for __method__, directory unless block_given?
 
     here = File.expand_path directory
-    start = here
-
-    Dir.chdir start
-
-    begin
-      loop do
-        yield here
-
-        Dir.chdir '..'
-
-        return if Dir.pwd == here # toplevel
-
-        here = Dir.pwd
-      end
-    ensure
-      Dir.chdir start
+    loop do
+      Dir.chdir here, &block
+      new_here = File.expand_path('..', here)
+      return if new_here == here # toplevel
+      here = new_here
     end
   end
 

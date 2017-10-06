@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 #--
 # Copyright 2006, 2007 by Chad Fowler, Rich Kilmer, Jim Weirich, Eric Hodel
 # and others.
@@ -6,7 +7,7 @@
 #++
 
 if RUBY_VERSION < "1.8.7"
-  $stderr.puts "Rubygems now requires Ruby 1.8.7 or later"
+  $stderr.puts "RubyGems now requires Ruby 1.8.7 or later"
   exit 1
 end
 

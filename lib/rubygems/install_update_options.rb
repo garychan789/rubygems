@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 #--
 # Copyright 2006 by Chad Fowler, Rich Kilmer, Jim Weirich and others.
 # All rights reserved.
@@ -5,37 +6,18 @@
 #++
 
 require 'rubygems'
-
-# forward-declare
-
-module Gem::Security # :nodoc:
-  class Policy # :nodoc:
-  end
-end
+require 'rubygems/security_option'
 
 ##
 # Mixin methods for install and update options for Gem::Commands
 
 module Gem::InstallUpdateOptions
+  include Gem::SecurityOption
 
   ##
   # Add the install/update options to the option parser.
 
   def add_install_update_options
-    # TODO: use @parser.accept
-    OptionParser.accept Gem::Security::Policy do |value|
-      require 'rubygems/security'
-
-      raise OptionParser::InvalidArgument, 'OpenSSL not installed' unless
-        defined?(Gem::Security::HighSecurity)
-
-      value = Gem::Security::Policies[value]
-      valid = Gem::Security::Policies.keys.sort
-      message = "#{value} (#{valid.join ', '} are valid)"
-      raise OptionParser::InvalidArgument, message if value.nil?
-      value
-    end
-
     add_option(:"Install/Update", '-i', '--install-dir DIR',
                'Gem repository directory to get installed',
                'gems') do |value, options|
@@ -123,11 +105,7 @@ module Gem::InstallUpdateOptions
       options[:wrappers] = value
     end
 
-    add_option(:"Install/Update", '-P', '--trust-policy POLICY',
-               Gem::Security::Policy,
-               'Specify gem trust policy') do |value, options|
-      options[:security_policy] = value
-    end
+    add_security_option
 
     add_option(:"Install/Update", '--ignore-dependencies',
                'Do not install any required dependent gems') do |value, options|
@@ -135,8 +113,8 @@ module Gem::InstallUpdateOptions
     end
 
     add_option(:"Install/Update",       '--[no-]format-executable',
-               'Make installed executable names match ruby.',
-               'If ruby is ruby18, foo_exec will be',
+               'Make installed executable names match Ruby.',
+               'If Ruby is ruby18, foo_exec will be',
                'foo_exec18') do |value, options|
       options[:format_executable] = value
     end
@@ -178,6 +156,53 @@ module Gem::InstallUpdateOptions
                 "Print post install message") do |value, options|
       options[:post_install_message] = value
     end
+
+    add_option(:"Install/Update", '-g', '--file [FILE]',
+               'Read from a gem dependencies API file and',
+               'install the listed gems') do |v,o|
+      v = Gem::GEM_DEP_FILES.find do |file|
+        File.exist? file
+      end unless v
+
+      unless v then
+        message = v ? v : "(tried #{Gem::GEM_DEP_FILES.join ', '})"
+
+        raise OptionParser::InvalidArgument,
+                "cannot find gem dependencies file #{message}"
+      end
+
+      options[:gemdeps] = v
+    end
+
+    add_option(:"Install/Update", '--without GROUPS', Array,
+               'Omit the named groups (comma separated)',
+               'when installing from a gem dependencies',
+               'file') do |v,o|
+      options[:without_groups].concat v.map { |without| without.intern }
+    end
+
+    add_option(:"Install/Update", '--default',
+               'Add the gem\'s full specification to',
+               'specifications/default and extract only its bin') do |v,o|
+      options[:install_as_default] = v
+    end
+
+    add_option(:"Install/Update", '--explain',
+               'Rather than install the gems, indicate which would',
+               'be installed') do |v,o|
+      options[:explain] = v
+    end
+
+    add_option(:"Install/Update", '--[no-]lock',
+               'Create a lock file (when used with -g/--file)') do |v,o|
+      options[:lock] = v
+    end
+
+    add_option(:"Install/Update", '--[no-]suggestions',
+               'Suggest alternates when gems are not found') do |v,o|
+      options[:suggest_alternate] = v
+    end
+
   end
 
   ##

@@ -15,6 +15,11 @@ end
 
 begin
   require 'hoe'
+rescue Gem::ConflictError => e
+  abort <<-ERR
+Error while loading the hoe gem.
+#{e}
+  ERR
 rescue ::LoadError
   abort <<-ERR
 Error while loading the hoe gem.
@@ -26,14 +31,14 @@ end
 
 Hoe::RUBY_FLAGS << " --disable-gems" if RUBY_VERSION > "1.9"
 
-Hoe.plugin :minitest
 Hoe.plugin :git
 Hoe.plugin :travis
+Hoe.plugin :newb
 
 hoe = Hoe.spec 'rubygems-update' do
   self.author         = ['Jim Weirich', 'Chad Fowler', 'Eric Hodel']
   self.email          = %w[rubygems-developers@rubyforge.org]
-  self.readme_file    = 'README.rdoc'
+  self.readme_file    = 'README.md'
 
   license 'Ruby'
   license 'MIT'
@@ -41,6 +46,7 @@ hoe = Hoe.spec 'rubygems-update' do
   spec_extras[:required_rubygems_version] = Gem::Requirement.default
   spec_extras[:required_ruby_version]     = Gem::Requirement.new '>= 1.8.7'
   spec_extras[:executables]               = ['update_rubygems']
+  spec_extras[:homepage]                  = 'https://rubygems.org'
 
   rdoc_locations <<
     'docs-push.seattlerb.org:/data/www/docs.seattlerb.org/rubygems/'
@@ -55,11 +61,13 @@ hoe = Hoe.spec 'rubygems-update' do
                    'pkgs/sources/sources*.gem',
                    'scripts/*.hieraki')
 
+  extra_dev_deps.clear
+
   dependency 'builder',       '~> 2.1',   :dev
   dependency 'hoe-seattlerb', '~> 1.2',   :dev
-  dependency 'rdoc',          '~> 3.0',   :dev
+  dependency 'rdoc',          '~> 4.0',   :dev
   dependency 'ZenTest',       '~> 4.5',   :dev
-  dependency 'rake',          '~> 0.9.3', :dev
+  dependency 'rake',          '~> 10.5',  :dev
   dependency 'minitest',      '~> 4.0',   :dev
 
   self.extra_rdoc_files = Dir["*.rdoc"] + %w[
@@ -73,17 +81,35 @@ hoe = Hoe.spec 'rubygems-update' do
 
   self.rsync_args += " --no-p -O"
 
+  self.version = File.open('lib/rubygems.rb', 'r:utf-8') do |f|
+    f.read[/VERSION\s+=\s+(['"])(#{Gem::Version::VERSION_PATTERN})\1/, 2]
+  end
+
   spec_extras['require_paths'] = %w[hide_lib_for_update]
 end
 
+# Monkey-patch to ensure newly-installed gems are visible
+Hoe::Package.instance_method(:install_gem).tap do |existing_install_gem|
+  Hoe::Package.send(:define_method, :install_gem) do |*args|
+    existing_install_gem.bind(self).call(*args).tap { Gem::Specification.reset }
+  end
+end
+
+Hoe::DEFAULT_CONFIG["exclude"] = %r[#{Hoe::DEFAULT_CONFIG["exclude"]}|\./bundler/(?!lib|man|exe|[^/]+\.md)]ox
+
 v = hoe.version
 
-hoe.test_prelude = 'gem "minitest", "~> 4.0"'
+hoe.testlib      = :minitest
+hoe.test_prelude = <<-RUBY.gsub("\n", ";")
+  gem "minitest", "~> 4.0"
+  $:.unshift #{File.expand_path("../bundler/lib", __FILE__).dump}
+RUBY
 
 Rake::Task['docs'].clear
 Rake::Task['clobber_docs'].clear
 
 begin
+  gem 'rdoc', '~> 4.0'
   require 'rdoc/task'
 
   RDoc::Task.new :rdoc => 'docs', :clobber_rdoc => 'clobber_docs' do |doc|
@@ -102,6 +128,20 @@ rescue LoadError, RuntimeError # rake 10.1 on rdoc from ruby 1.9.2 and earlier
     abort 'You must install rdoc to build documentation, try `rake newb` again'
   end
 end
+
+class Hoe
+  module Deps
+    alias_method :default_check_extra_task, :check_extra_deps_task
+    def check_extra_deps_task
+      default_check_extra_task
+    rescue Gem::LoadError => e
+      raise unless e.name == 'rake'
+      details = "#{e.class}: #{e}"
+      abort "To override your default rake version, run: `rake _x.y.z_ task_name`:\n\t#{details}"
+    end
+  end
+end
+task(:newb).prerequisites.unshift "bundler:checkout"
 
 desc "Install gems needed to run the tests"
 task :install_test_deps => :clean_env do
@@ -171,13 +211,13 @@ task :package => %W[
        pkg/rubygems-#{v}.zip
      ]
 
-desc "Upload release to gemcutter S3"
-task :upload_to_gemcutter do
-  sh "s3cmd put -P pkg/rubygems-update-#{v}.gem pkg/rubygems-#{v}.zip pkg/rubygems-#{v}.tgz s3://production.s3.rubygems.org/rubygems/"
+desc "Upload release to S3"
+task :upload_to_s3 do
+  sh "s3cmd put -P pkg/rubygems-#{v}.zip pkg/rubygems-#{v}.tgz s3://oregon.production.s3.rubygems.org/rubygems/"
 end
 
 desc "Upload release to rubygems.org"
-task :upload => %w[upload_to_gemcutter]
+task :upload => %w[upload_to_s3]
 
 on_master = `git branch --list master`.strip == '* master'
 on_master = true if ENV['FORCE']
@@ -354,7 +394,7 @@ SHA256 Checksums:
 
       io.flush
 
-      sh ENV['EDITOR'], io.path
+      sh(ENV['EDITOR'] || 'vim', io.path)
 
       FileUtils.cp io.path, path
     end
@@ -446,4 +486,23 @@ end
 desc "Cleanup trailing whitespace"
 task :whitespace do
   system 'find . -not \( -name .svn -prune -o -name .git -prune \) -type f -print0 | xargs -0 sed -i "" -E "s/[[:space:]]*$//"'
+end
+
+desc "Update the manifest to reflect what's on disk"
+task :update_manifest do
+  files = []
+  require 'find'
+  exclude = Hoe::DEFAULT_CONFIG["exclude"]
+  Find.find(".") do |path|
+    next unless File.file?(path)
+    next if path =~ exclude
+    files << path[2..-1]
+  end
+  File.open('Manifest.txt', 'w') {|f| f.puts(files.sort) }
+end
+
+namespace :bundler do
+  task :checkout do
+    sh "git submodule update --init"
+  end
 end

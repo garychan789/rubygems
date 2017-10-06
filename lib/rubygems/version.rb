@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 ##
 # The Version class processes string versions into comparable
 # values. A version string should normally be a series of numbers
@@ -169,7 +170,7 @@ class Gem::Version
   # True if the +version+ string matches RubyGems' requirements.
 
   def self.correct? version
-    version.to_s =~ ANCHORED_VERSION_PATTERN
+    !!(version.to_s =~ ANCHORED_VERSION_PATTERN)
   end
 
   ##
@@ -203,8 +204,12 @@ class Gem::Version
   # series of digits or ASCII letters separated by dots.
 
   def initialize version
-    raise ArgumentError, "Malformed version number string #{version}" unless
-      self.class.correct?(version)
+    unless self.class.correct?(version)
+      raise ArgumentError, "Malformed version number string #{version}"
+    end
+
+    # If version is an empty string convert it to 0
+    version = 0 if version =~ /\A\s*\Z/
 
     @version = version.to_s.strip.gsub("-",".pre.")
     @segments = nil
@@ -218,7 +223,7 @@ class Gem::Version
 
   def bump
     @bump ||= begin
-                segments = self.segments.dup
+                segments = self.segments
                 segments.pop while segments.any? { |s| String === s }
                 segments.pop if segments.size > 1
 
@@ -236,7 +241,7 @@ class Gem::Version
   end
 
   def hash # :nodoc:
-    @version.hash
+    canonical_segments.hash
   end
 
   def init_with coder # :nodoc:
@@ -281,7 +286,10 @@ class Gem::Version
   # A version is considered a prerelease if it contains a letter.
 
   def prerelease?
-    @prerelease ||= !!(@version =~ /[a-zA-Z]/)
+    unless instance_variable_defined? :@prerelease
+      @prerelease = !!(@version =~ /[a-zA-Z]/)
+    end
+    @prerelease
   end
 
   def pretty_print q # :nodoc:
@@ -294,7 +302,7 @@ class Gem::Version
 
   def release
     @release ||= if prerelease?
-                   segments = self.segments.dup
+                   segments = self.segments
                    segments.pop while segments.any? { |s| String === s }
                    self.class.new segments.join('.')
                  else
@@ -303,20 +311,14 @@ class Gem::Version
   end
 
   def segments # :nodoc:
-
-    # segments is lazy so it can pick up version values that come from
-    # old marshaled versions, which don't go through marshal_load.
-
-    @segments ||= @version.scan(/[0-9]+|[a-z]+/i).map do |s|
-      /^\d+$/ =~ s ? s.to_i : s
-    end
+    _segments.dup
   end
 
   ##
   # A recommended version for use with a ~> Requirement.
 
   def approximate_recommendation
-    segments = self.segments.dup
+    segments = self.segments
 
     segments.pop    while segments.any? { |s| String === s }
     segments.pop    while segments.size > 2
@@ -333,10 +335,10 @@ class Gem::Version
 
   def <=> other
     return unless Gem::Version === other
-    return 0 if @version == other._version
+    return 0 if @version == other._version || canonical_segments == other.canonical_segments
 
-    lhsegments = segments
-    rhsegments = other.segments
+    lhsegments = _segments
+    rhsegments = other._segments
 
     lhsize = lhsegments.size
     rhsize = rhsegments.size
@@ -358,9 +360,33 @@ class Gem::Version
     return 0
   end
 
+  def canonical_segments
+    @canonical_segments ||=
+      _split_segments.map! do |segments|
+        segments.reverse_each.drop_while {|s| s == 0 }.reverse
+      end.reduce(&:concat)
+  end
+
   protected
 
   def _version
     @version
+  end
+
+  def _segments
+    # segments is lazy so it can pick up version values that come from
+    # old marshaled versions, which don't go through marshal_load.
+    # since this version object is cached in @@all, its @segments should be frozen
+
+    @segments ||= @version.scan(/[0-9]+|[a-z]+/i).map do |s|
+      /^\d+$/ =~ s ? s.to_i : s
+    end.freeze
+  end
+
+  def _split_segments
+    string_start = _segments.index {|s| s.is_a?(String) }
+    string_segments  = segments
+    numeric_segments = string_segments.slice!(0, string_start || string_segments.size)
+    return numeric_segments, string_segments
   end
 end

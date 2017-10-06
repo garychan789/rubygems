@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems/installer_test_case'
 require 'rubygems/install_update_options'
 require 'rubygems/command'
@@ -120,9 +121,10 @@ class TestGemInstallUpdateOptions < Gem::InstallerTestCase
   def test_security_policy_unknown
     @cmd.add_install_update_options
 
-    assert_raises OptionParser::InvalidArgument do
+    e = assert_raises OptionParser::InvalidArgument do
       @cmd.handle_options %w[-P UnknownSecurity]
     end
+    assert_includes e.message, "UnknownSecurity"
   end
 
   def test_user_install_enabled

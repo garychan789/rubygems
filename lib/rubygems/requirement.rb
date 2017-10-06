@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require "rubygems/version"
 require "rubygems/deprecate"
 
@@ -50,7 +51,11 @@ class Gem::Requirement
   # If the input is "weird", the default version requirement is
   # returned.
 
-  def self.create input
+  def self.create *inputs
+    return new inputs if inputs.length > 1
+
+    input = inputs.shift
+
     case input
     when Gem::Requirement then
       input

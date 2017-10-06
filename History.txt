@@ -1,5 +1,292 @@
 # coding: UTF-8
 
+=== 2.6.13 / 2017-08-27
+
+Security fixes:
+
+* Fix a DNS request hijacking vulnerability. (CVE-2017-0902)
+  Discovered by Jonathan Claudius, fix by Samuel Giddins.
+* Fix an ANSI escape sequence vulnerability. (CVE-2017-0899)
+  Discovered by Yusuke Endoh, fix by Evan Phoenix.
+* Fix a DOS vulnerability in the `query` command. (CVE-2017-0900)
+  Discovered by Yusuke Endoh, fix by Samuel Giddins.
+* Fix a vulnerability in the gem installer that allowed a malicious gem
+  to overwrite arbitrary files. (CVE-2017-0901)
+  Discovered by Yusuke Endoh, fix by Samuel Giddins.
+
+=== 2.6.12 / 2017-04-30
+
+Bug fixes:
+
+* Fix test_self_find_files_with_gemfile to sort expected files. Pull
+  request #1880 by Kazuaki Matsuo.
+* Fix issue for MinGW / MSYS2 builds and testing. Pull request #1879 by
+  MSP-Greg.
+* Fix gem open to open highest version number rather than lowest. Pull
+  request #1877 by Tim Pope.
+* Add a test for requiring a default spec as installed by the ruby
+  installer. Pull request #1899 by Samuel Giddins.
+* Fix broken --exact parameter to gem command. Pull request #1873 by Jason
+  Frey.
+* [Installer] Generate backwards-compatible binstubs. Pull request #1904
+  by Samuel Giddins.
+* Fix pre-existing source recognition on add action. Pull request #1883 by
+  Jonathan Claudius.
+* Prevent negative IDs in output of #inspect. Pull request #1908 by Vít
+  Ondruch.
+* Allow Gem.finish_resolve to respect already-activated specs. Pull
+  request #1910 by Samuel Giddins.
+
+=== 2.6.11 / 2017-03-16
+
+Bug fixes:
+
+* Fixed broken tests on ruby-head. Pull request #1841 by
+  SHIBATA Hiroshi.
+* Update vendored Molinillo to 0.5.7. Pull request #1859 by Samuel
+  Giddins.
+* Avoid activating Ruby 2.5 default gems when possible. Pull request #1843
+  by Samuel Giddins.
+* Use improved resolver sorting algorithm. Pull request #1856 by
+  Samuel Giddins.
+
+=== 2.6.10 / 2017-01-23
+
+Bug fixes:
+
+* Fix `require` calling the wrong `gem` method when it is overridden.
+  Pull request #1822 by Samuel Giddins.
+
+=== 2.6.9 / 2017-01-20
+
+Bug fixes:
+
+* Allow initializing versions with empty strings. Pull request #1767 by
+  Luis Sagastume.
+* Fix TypeError on 2.4. Pull request #1788 by Nobuyoshi Nakada.
+* Don't output mkmf.log message if compilation didn't fail. Pull request
+  #1808 by Jeremy Evans.
+* Fixed broken links and overzealous URL encoding in gem server. Pull
+  request #1809 by Nicole Orchard.
+* Update vendored Molinillo to 0.5.5. Pull request #1812 by Samuel
+  Giddins.
+* RakeBuilder: avoid frozen string issue. Pull request #1819 by Olle
+  Jonsson.
+
+=== 2.6.8 / 2016-10-29
+
+Bug fixes:
+
+* Improve SSL verification failure message. Pull request #1751
+  by Eric Hodel.
+* Ensure `to_spec` falls back on prerelease specs. Pull request
+  #1755 by André Arko.
+* Update vendored Molinillo to 0.5.3. Pull request #1763 by
+  Samuel Giddins.
+
+=== 2.6.7 / 2016-09-26
+
+Bug fixes:
+
+* Install native extensions in the correct location when using the
+  `--user-install` flag. Pull request #1683 by Noah Kantrowitz.
+* When calling `Gem.sources`, load sources from `configuration`
+  if present, else use the default sources. Pull request #1699
+  by Luis Sagastume.
+* Fail gracefully when attempting to redirect without a Location.
+  Pull request #1711 by Samuel Giddins.
+* Update vendored Molinillo to 0.5.1. Pull request #1714 by
+  Samuel Giddins.
+
+=== 2.6.6 / 2016-06-22
+
+Bug fixes:
+
+* Sort installed versions to make sure we install the latest version when
+  running `gem update --system`. As a one-time fix, run
+  `gem update --system=2.6.6`. Pull request #1601 by David Radcliffe.
+
+=== 2.6.5 / 2016-06-21
+
+Minor enhancements:
+
+* Support for unified Integer in Ruby 2.4. Pull request #1618
+  by SHIBATA Hiroshi.
+* Update vendored Molinillo to 0.5.0 for performance improvements.
+  Pull request #1638 by Samuel Giddins.
+
+Bug fixes:
+
+* Raise an explicit error if Signer#sign is called with no certs. Pull
+  request #1605 by Daniel Berger.
+* Update `update_bundled_ca_certificates` utility script for directory
+  nesting. Pull request #1583 by James Wen.
+* Fix broken symlink support in tar writer (+ fix broken test). Pull
+  request #1578 by Cezary Baginski.
+* Remove extension directory before (re-)installing. Pull request #1576
+  by Jeremy Hinegardner.
+* Regenerate test CA certificates with appropriate extensions. Pull
+  request #1611 by rhenium.
+* Rubygems does not terminate on failed file lock when not superuser. Pull
+  request #1582 by Ellen Marie Dash.
+* Fix tar headers with a 101 character name. Pull request #1612 by Paweł
+  Tomulik.
+* Add Gem.platform_defaults to allow implementations to override defaults.
+  Pull request #1644 by Charles Oliver Nutter.
+* Run Bundler tests on TravisCI. Pull request #1650 by Samuel Giddins.
+
+=== 2.6.4 / 2016-04-26
+
+Minor enhancements:
+
+* Use Gem::Util::NULL_DEVICE instead of hard coded strings. Pull request #1588
+  by Chris Charabaruk.
+* Use File.symlink on MS Windows if supported. Pull request #1418
+  by Nobuyoshi Nakada.
+
+Bug fixes:
+
+* Redact uri password from error output when gem fetch fails. Pull request
+  #1565 by Brian Fletcher.
+* Suppress warnings. Pull request #1594 by Nobuyoshi Nakada.
+* Escape user-supplied content served on web pages by `gem server` to avoid
+  potential XSS vulnerabilities. Samuel Giddins.
+
+=== 2.6.3 / 2016-04-05
+
+Minor enhancements:
+
+* Lazily calculate Gem::LoadError exception messages. Pull request #1550
+  by Aaron Patterson.
+* New fastly cert. Pull request #1548 by David Radcliffe.
+* Organize and cleanup SSL certs. Pull request #1555 by James Wen.
+* [RubyGems] Make deprecation message for paths= more helpful. Pull
+  request #1562 by Samuel Giddins.
+* Show default gems when using "gem list". Pull request #1570 by Luis
+  Sagastume.
+
+Bug fixes:
+
+* Stub ordering should be consistent regardless of how cache is populated.
+  Pull request #1552 by Aaron Patterson.
+* Handle cases when the @@stubs variable contains non-stubs. Pull request
+  #1558 by Per Lundberg.
+* Fix test on Windows for inconsistent temp path. Pull request #1554 by
+  Hiroshi Shirosaki.
+* Fix `Gem.find_spec_for_exe` picks oldest gem. Pull request #1566 by
+  Shinichi Maeshima.
+* [Owner] Fallback to email and userid when owner email is missing. Pull
+  request #1569 by Samuel Giddins.
+* [Installer] Handle nil existing executable. Pull request #1561 by Samuel
+  Giddins.
+* Allow two digit version numbers in the tests. Pull request #1575 by unak.
+
+=== 2.6.2 / 2016-03-12
+
+Bug fixes:
+
+* Fix wrong version of gem activation for bin stub. Pull request #1527 by
+  Aaron Patterson.
+* Speed up gem activation failures. Pull request #1539 by Aaron Patterson.
+* Fix platform sorting in the resolver. Pull request #1542 by Samuel E.
+  Giddins.
+* Ensure we unlock the monitor even if try_activate throws. Pull request
+  #1538 by Charles Oliver Nutter.
+
+
+=== 2.6.1 / 2016-02-28
+
+Bug fixes:
+
+* Ensure `default_path` and `home` are set for paths. Pull request #1513
+  by Aaron Patterson.
+* Restore but deprecate support for Array values on `Gem.paths=`. Pull
+  request #1514 by Aaron Patterson.
+* Fix invalid gem file preventing gem install from working. Pull request
+  #1499 by Luis Sagastume.
+
+=== 2.6.0 / 2016-02-26
+
+Minor enhancements:
+
+* RubyGems now defaults the `gem push` to the gem's "allowed_push_host"
+  metadata setting.  Pull request #1486 by Josh Lane.
+* Update bundled Molinillo to 0.4.3. Pull request #1493 by Samuel E. Giddins.
+* Add version option to gem open command. Pull request #1483 by Hrvoje
+  Šimić.
+* Feature/add silent flag. Pull request #1455 by Luis Sagastume.
+* Allow specifying gem requirements via env variables. Pull request #1472
+  by Samuel E. Giddins.
+
+Bug fixes:
+
+* RubyGems now stores `gem push` credentials under the host you signed-in for.
+  Pull request #1485 by Josh Lane.
+* Move `coding` location to first line. Pull request #1471 by SHIBATA
+  Hiroshi.
+* [PathSupport] Handle a regexp path separator. Pull request #1469 by
+  Samuel E. Giddins.
+* Clean up the PathSupport object. Pull request #1094 by Aaron Patterson.
+* Join with File::PATH_SEPARATOR in Gem.use_paths. Pull request #1476 by
+  Samuel E. Giddins.
+* Handle when the gem home and gem path arent set in the config file. Pull
+  request #1478 by Samuel E. Giddins.
+* Terminate TimeoutHandler. Pull request #1479 by Nobuyoshi Nakada.
+* Remove redundant cache. Pull request #1482 by Eileen M. Uchitelle.
+* Freeze `Gem::Version@segments` instance variable. Pull request #1487 by
+  Ben Dean.
+* Gem cleanup is trying to uninstall gems outside GEM_HOME and reporting
+  an error after it tries. Pull request #1353 by Luis Sagastume.
+* Avoid duplicated sources. Pull request #1489 by Luis Sagastume.
+* Better description for quiet flag. Pull request #1491 by Luis Sagastume.
+* Raise error if find_by_name returns with nil. Pull request #1494 by
+  Zoltán Hegedüs.
+* Find_files only from loaded_gems when using gemdeps. Pull request #1277
+  by Michal Papis.
+
+=== 2.5.2 / 2016-01-31
+
+Bug fixes:
+
+* Fix memoization of Gem::Version#prerelease? Pull request #1125 by Matijs van
+  Zuijlen.
+* Handle trailing colons in GEM_PATH, by Damien Robert.
+* Improve the Gemfile `gemspec` method, fixing #1204 and #1033. Pull request
+  #1276 by Michael Papis.
+* Warn only once when a gemspec license is invalid. Pull request #1414 by Samuel
+  E. Giddins.
+* Check for exact constants before using them, fixing Ruby bug #11940. Pull
+  request #1438 by Nobuyoshi Nakada.
+* Fix building C extensions on Ruby 1.9.x on Windows. Pull request #1453 by Marie
+  Markwell.
+* Handle symlinks containing ".." correctly. Pull request #1457 by Samuel E.
+  Giddins.
+
+Minor enhancements:
+
+* Add `--no-rc` flag, which skips loading `.gemrc`. Pull request #1329 by Luis
+  Sagastume.
+* Allow basic auth to be excluded from `allowed_push_host`. By Josh Lane.
+* Add `gem list --exact`, which finds gems by string match instead of regex. Pull
+  request #1344 by Luis Sagastume.
+* Suggest alternatives when gem license is unknown. Pull request #1443 by Samuel
+  E. Giddins.
+* Print a useful error if a binstub expects a newer version of a gem than is
+  installed. Pull request #1407 by Samuel E. Giddins.
+* Allow the (supported) s3:// scheme to be used with `--source`. Pull request
+  #1416 by Dave Adams.
+* Add `--[no-]post-install-message` to `install` and `update`. Pull request #1162
+  by Josef Šimánek.
+* Add `--host` option to `yank`, providing symmetry with `pull`. Pull request
+  #1361 by Mike Virata-Stone.
+* Update bundled Molinillo to 0.4.1. Pull request #1452 by Samuel E. Giddins.
+* Allow calling `build` without '.gemspec'. Pull request #1454 by Stephen
+  Blackstone.
+* Add support for `source` option on gems in Gemfile. Pull request #1355 by
+  Michael Papis.
+* Function correctly when string literals are frozen on Ruby 2.3. Pull request
+  #1408 by Samuel E. Giddins.
+
 === 2.5.1 / 2015-12-10
 
 Bug fixes:
@@ -14,7 +301,7 @@ Bug fixes:
   request #1314 by Samuel E. Giddins.
 * Updated bundled Molinillo to 0.4.0.  Pull request #1322, #1396 by Samuel E.
   Giddins.
-* Improved performance of spec loading by reducing likelihood of loading he
+* Improved performance of spec loading by reducing likelihood of loading the
   complete specification.  Pull request #1373 by Aaron Patterson.
 * Improved caching of requirable files  Pull request #1377 by Aaron Patterson.
 * Fixed activation of gems with development dependencies.  Pull request #1388
@@ -2133,7 +2420,7 @@ http://rubygems.org is now the default source for downloading gems.
 You may have sources set via ~/.gemrc, so you should replace
 http://gems.rubyforge.org with http://rubygems.org
 
-http://gems.rubyforge.org will continue to work for the forseeable future.
+http://gems.rubyforge.org will continue to work for the foreseeable future.
 
 New features:
 
@@ -2178,12 +2465,12 @@ New features:
   * `gem server` now supports --bind.  Patch #27357 by Bruno Michel.
   * `gem rdoc` no longer overwrites built documentation.  Use --overwrite
     force rebuilding.  Patch #25982 by Akinori MUSHA.
-* Captial letters are now allowed in prerelease versions.
+* Capital letters are now allowed in prerelease versions.
 
 Bug fixes:
 
 * Development deps are no longer added to rubygems-update gem so older
-  versions can update sucessfully.
+  versions can update successfully.
 * Installer bugs:
   * Prerelease gems can now depend on non-prerelease gems.
   * Development dependencies are ignored unless explicitly needed.  Bug #27608
@@ -2603,7 +2890,7 @@ Major New Features Include:
 * Bulk update threshold can be specified (-B, --bulk-threshold)
 * New `gem fetch` command
 * `gem` now has "really verbose" output when you specify -v
-* Improved stubs and `gem.bat` on mswin, including better compatiblity
+* Improved stubs and `gem.bat` on mswin, including better compatibility
   with the One-Click Installer.
 
 Other Changes Include:
@@ -2666,7 +2953,7 @@ Bug Fixes Include:
 * The source cache files may now be dropped with the "gem sources
   --clear-all" command.  (This command may require root is the system
   source cache is in a root protected area).
-* Several sub-commands were accidently dropped from the "gem" command.
+* Several sub-commands were accidentally dropped from the "gem" command.
   These commands have been restored.
 
 === 0.9.3 / 2007-05-10
@@ -2676,7 +2963,7 @@ Bug Fixes Include:
 The ZLib library on Windows will occasionally complains about a buffer error
 when unpacking gems.  The Gems software has a workaround for that problem, but
 the workaround was only enabled for versions of ZLib 1.2.1 or earlier.  We
-have received several reports of the error occuring with ZLib 1.2.3, so we
+have received several reports of the error occurring with ZLib 1.2.3, so we
 have permanently enabled the work around on all versions.
 
 === 0.9.2 / 2007-02-05
@@ -2717,7 +3004,7 @@ Major Enhancments include:
 
 Minor enhancements include:
 
-* Verison 0.0.0 is now a valid gem version.
+* Version 0.0.0 is now a valid gem version.
 * Better detection of missing SSL functionality.
 * SSL is not required if the security policy does not require
   signature checking.
@@ -2736,7 +3023,7 @@ Bug Fixes:
 * Fixed bug where the wrong executables could be uninstalled (Eric
   Hodel).
 * Fixed bug where gem unpack occasionally unpacked the wrong gem.
-* Fixed bug where a fatal error occured when permissions on .gemrc
+* Fixed bug where a fatal error occurred when permissions on .gemrc
   were too restrictive (reported by Luca Pireddu).
 * Fixed prefix handling for native expressions (patch by Aaron Patterson).
 * Fixed several Upgrade => Update typos.
@@ -2762,7 +3049,7 @@ Bug Fixes:
 
 === 0.8.10 / 2005-03-27
 
-* In multi-user environments, it is common to supply mulitple versions of gems
+* In multi-user environments, it is common to supply multiple versions of gems
   (for example Rails), allowing individual users to select the version of the
   gem they desire.  This allows a user to be insulated from updates to that
   gem.  RubyGems 0.8.10 fixes a problem where gems could occasionally become
@@ -2984,7 +3271,7 @@ See ChangeLog
 
 === 0.4.0 / 2004-05-30
 
-* Minor bug fixes including Windows compatability issues
+* Minor bug fixes including Windows compatibility issues
 
 === 0.3.0 / 2004-04-30
 

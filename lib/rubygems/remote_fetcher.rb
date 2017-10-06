@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems'
 require 'rubygems/request'
 require 'rubygems/uri_formatter'
@@ -26,7 +27,13 @@ class Gem::RemoteFetcher
 
     def initialize(message, uri)
       super message
-      @uri = uri
+      begin
+        uri = URI(uri)
+        uri.password = 'REDACTED' if uri.password
+        @uri = uri.to_s
+      rescue URI::InvalidURIError, ArgumentError
+        @uri = uri
+      end
     end
 
     def to_s # :nodoc:
@@ -103,7 +110,7 @@ class Gem::RemoteFetcher
     else
       target = res.target.to_s.strip
 
-      if /\.#{Regexp.quote(host)}\z/ =~ target
+      if URI("http://" + target).host.end_with?(".#{host}")
         return URI.parse "#{uri.scheme}://#{target}#{uri.path}"
       end
 
@@ -253,6 +260,9 @@ class Gem::RemoteFetcher
          Net::HTTPTemporaryRedirect then
       raise FetchError.new('too many redirects', uri) if depth > 10
 
+      unless location = response['Location']
+        raise FetchError.new("redirecting but no redirect location was given", uri)
+      end
       location = URI.parse response['Location']
 
       if https?(uri) && !https?(location)
@@ -321,20 +331,7 @@ class Gem::RemoteFetcher
     end
 
     if update and path
-      begin
-        open(path, 'wb') do |io|
-          io.flock(File::LOCK_EX)
-          io.write data
-        end
-      rescue Errno::ENOLCK # NFS
-        if Thread.main != Thread.current
-          raise
-        else
-          open(path, 'wb') do |io|
-            io.write data
-          end
-        end
-      end
+      Gem.write_binary(path, data)
     end
 
     data
@@ -420,4 +417,3 @@ class Gem::RemoteFetcher
     end
   end
 end
-

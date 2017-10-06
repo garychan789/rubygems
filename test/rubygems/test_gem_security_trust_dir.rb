@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems/test_case'
 
 unless defined?(OpenSSL::SSL) then
@@ -17,7 +18,7 @@ class TestGemSecurityTrustDir < Gem::TestCase
   end
 
   def test_cert_path
-    digest = OpenSSL::Digest::SHA1.hexdigest PUBLIC_CERT.subject.to_s
+    digest = Gem::Security::DIGEST_ALGORITHM.hexdigest PUBLIC_CERT.subject.to_s
 
     expected = File.join @dest_dir, "cert-#{digest}.pem"
 
@@ -41,7 +42,7 @@ class TestGemSecurityTrustDir < Gem::TestCase
   end
 
   def test_name_path
-    digest = OpenSSL::Digest::SHA1.hexdigest PUBLIC_CERT.subject.to_s
+    digest = Gem::Security::DIGEST_ALGORITHM.hexdigest PUBLIC_CERT.subject.to_s
 
     expected = File.join @dest_dir, "cert-#{digest}.pem"
 

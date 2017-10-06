@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems/command'
 require 'rubygems/local_remote_options'
 require 'rubygems/version_option'
@@ -10,19 +11,11 @@ class Gem::Commands::YankCommand < Gem::Command
 
   def description # :nodoc:
     <<-EOF
-The yank command removes a gem you pushed to a server from the server's
-index.
-
-Note that if you push a gem to rubygems.org the yank command does not
-prevent other people from downloading the gem via the download link.
+The yank command permanently removes a gem you pushed to a server.
 
 Once you have pushed a gem several downloads will happen automatically
-via the webhooks.  If you accidentally pushed passwords or other sensitive
+via the webhooks. If you accidentally pushed passwords or other sensitive
 data you will need to change them immediately and yank your gem.
-
-If you are yanking a gem due to intellectual property reasons contact
-http://help.rubygems.org for permanent removal.  Be sure to mention this
-as the reason for the removal request.
     EOF
   end
 
@@ -31,7 +24,7 @@ as the reason for the removal request.
   end
 
   def usage # :nodoc:
-    "#{program_name} GEM -v VERSION [-p PLATFORM] [--key KEY_NAME]"
+    "#{program_name} GEM -v VERSION [-p PLATFORM] [--key KEY_NAME] [--host HOST]"
   end
 
   def initialize
@@ -40,11 +33,20 @@ as the reason for the removal request.
     add_version_option("remove")
     add_platform_option("remove")
 
+    add_option('--host HOST',
+               'Yank from another gemcutter-compatible host',
+               '  (e.g. https://rubygems.org)') do |value, options|
+      options[:host] = value
+    end
+
     add_key_option
+    @host = nil
   end
 
   def execute
-    sign_in
+    @host = options[:host]
+
+    sign_in @host
 
     version   = get_version_from_requirements(options[:version])
     platform  = get_platform_from_requirements(options)
@@ -66,7 +68,7 @@ as the reason for the removal request.
 
   def yank_api_request(method, version, platform, api)
     name = get_one_gem_name
-    response = rubygems_api_request(method, api) do |request|
+    response = rubygems_api_request(method, api, host) do |request|
       request.add_field("Authorization", api_key)
 
       data = {

@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 ##
 # A Lock source wraps an installed gem's source and sorts before other sources
 # during dependency resolution.  This allows RubyGems to prefer gems from
@@ -33,6 +34,10 @@ class Gem::Source::Lock < Gem::Source
     0 == (self <=> other)
   end
 
+  def hash # :nodoc:
+    @wrapped.hash ^ 3
+  end
+
   ##
   # Delegates to the wrapped source's fetch_spec method.
 
@@ -45,4 +50,3 @@ class Gem::Source::Lock < Gem::Source
   end
 
 end
-

@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'benchmark'
 require 'rubygems/test_case'
 require 'pathname'
@@ -97,6 +98,17 @@ end
     @current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION
 
     load 'rubygems/syck_hack.rb'
+  end
+
+  def test_self_find_active_stub_by_path
+    spec = new_spec('a', '1', nil, 'lib/foo.rb')
+    spec.activated = true
+
+    # There used to be a bug (introduced in a9c1aaf) when Gem::Specification
+    # objects are present in the @stubs collection. This test verifies that
+    # this scenario works correctly.
+    Gem::Specification.all = [spec]
+    Gem::Specification.find_active_stub_by_path('foo')
   end
 
   def test_self_activate
@@ -1001,7 +1013,7 @@ dependencies: []
     silence_warnings { Encoding.default_internal = 'US-ASCII' }
 
     spec2 = @a2.dup
-    bin = "\u5678"
+    bin = "\u5678".dup
     spec2.authors = [bin]
     full_path = spec2.spec_file
     write_file full_path do |io|
@@ -1248,7 +1260,7 @@ dependencies: []
       s.version = '1'
     end
 
-    spec.instance_variable_set :@licenses, :blah
+    spec.instance_variable_set :@licenses, (class << (Object.new);self;end)
     spec.loaded_from = '/path/to/file'
 
     e = assert_raises Gem::FormatException do
@@ -1574,7 +1586,7 @@ dependencies: []
       refute @ext.contains_requirable_file? 'nonexistent'
     end
 
-    expected = "Ignoring ext-1 because its extensions are not built.  " +
+    expected = "Ignoring ext-1 because its extensions are not built. " +
                "Try: gem pristine ext --version 1\n"
 
     assert_equal expected, err
@@ -2736,14 +2748,6 @@ duplicate dependency on c (>= 1.2.3, development), (~> 1.2) use:
     util_setup_validate
 
     Dir.chdir @tempdir do
-      @a1.email = ""
-
-      use_ui @ui do
-        @a1.validate
-      end
-
-      assert_match "#{w}:  no email specified\n", @ui.error, "error"
-
       @a1.email = "FIxxxXME (your e-mail)".sub(/xxx/, "")
 
       e = assert_raises Gem::InvalidSpecificationException do
@@ -2950,6 +2954,58 @@ http://spdx.org/licenses or 'Nonstandard' for a nonstandard license.
     warning
   end
 
+  def test_validate_license_gives_suggestions
+    util_setup_validate
+
+    use_ui @ui do
+      @a1.licenses = ['ruby']
+      @a1.validate
+    end
+
+    assert_match <<-warning, @ui.error
+WARNING:  license value 'ruby' is invalid.  Use a license identifier from
+http://spdx.org/licenses or 'Nonstandard' for a nonstandard license.
+Did you mean 'Ruby'?
+    warning
+  end
+
+  def test_validate_empty_files
+    util_setup_validate
+
+    use_ui @ui do
+      # we have to set all of these for #files to be empty
+      @a1.files = []
+      @a1.test_files = []
+      @a1.executables = []
+
+      @a1.validate
+    end
+
+    assert_match "no files specified", @ui.error
+  end
+
+  def test_validate_empty_homepage
+    util_setup_validate
+
+    use_ui @ui do
+      @a1.homepage = nil
+      @a1.validate
+    end
+
+    assert_match "no homepage specified", @ui.error
+  end
+
+  def test_validate_empty_summary
+    util_setup_validate
+
+    use_ui @ui do
+      @a1.summary = nil
+      @a1.validate
+    end
+
+    assert_match "no summary specified", @ui.error
+  end
+
   def test_validate_name
     util_setup_validate
 
@@ -2958,7 +3014,37 @@ http://spdx.org/licenses or 'Nonstandard' for a nonstandard license.
       @a1.validate
     end
 
-    assert_equal 'invalid value for attribute name: ":json"', e.message
+    assert_equal 'invalid value for attribute name: ":json" must be a string', e.message
+
+    @a1.name = []
+    e = assert_raises Gem::InvalidSpecificationException do
+      @a1.validate
+    end
+    assert_equal "invalid value for attribute name: \"[]\" must be a string", e.message
+
+    @a1.name = ""
+    e = assert_raises Gem::InvalidSpecificationException do
+      @a1.validate
+    end
+    assert_equal "invalid value for attribute name: \"\" must include at least one letter", e.message
+
+    @a1.name = "12345"
+    e = assert_raises Gem::InvalidSpecificationException do
+      @a1.validate
+    end
+    assert_equal "invalid value for attribute name: \"12345\" must include at least one letter", e.message
+
+    @a1.name = "../malicious"
+    e = assert_raises Gem::InvalidSpecificationException do
+      @a1.validate
+    end
+    assert_equal "invalid value for attribute name: \"../malicious\" can only include letters, numbers, dashes, and underscores", e.message
+
+    @a1.name = "\ba\t"
+    e = assert_raises Gem::InvalidSpecificationException do
+      @a1.validate
+    end
+    assert_equal "invalid value for attribute name: \"\\ba\\t\" can only include letters, numbers, dashes, and underscores", e.message
   end
 
   def test_validate_non_nil
@@ -3053,7 +3139,7 @@ http://spdx.org/licenses or 'Nonstandard' for a nonstandard license.
         end
       end
 
-      err = 'specification_version must be a Fixnum (did you mean version?)'
+      err = 'specification_version must be an Integer (did you mean version?)'
       assert_equal err, e.message
     end
   end
@@ -3195,7 +3281,11 @@ http://spdx.org/licenses or 'Nonstandard' for a nonstandard license.
     Dir.chdir @tempdir do
       @m1 = quick_gem 'm', '1' do |s|
         s.files = %w[lib/code.rb]
-        s.metadata = { 'one' => "two", 'two' => "three" }
+        s.metadata = {
+          "one"          => "two",
+          "home"         => "three",
+          "homepage_uri" => "https://example.com/user/repo"
+        }
       end
 
       use_ui @ui do
@@ -3269,6 +3359,23 @@ http://spdx.org/licenses or 'Nonstandard' for a nonstandard license.
       end
 
       assert_equal "metadata value too large (1025 > 1024)", e.message
+    end
+  end
+
+  def test_metadata_link_validation_fails
+    util_setup_validate
+
+    Dir.chdir @tempdir do
+      @m2 = quick_gem 'm', '2' do |s|
+        s.files = %w[lib/code.rb]
+        s.metadata = { 'homepage_uri' => 'http:/example.com' }
+      end
+
+      e = assert_raises Gem::InvalidSpecificationException do
+        @m2.validate
+      end
+
+      assert_equal "metadata['homepage_uri'] has invalid link: \"http:/example.com\"", e.message
     end
   end
 
@@ -3349,6 +3456,31 @@ end
     refute @a1.missing_extensions?
   end
 
+  def test_find_all_by_full_name
+    pl = Gem::Platform.new 'i386-linux'
+
+    a1 = util_spec "a", "1"
+    a1_pre = util_spec "a", "1.0.0.pre.1"
+    a_1_platform = util_spec("a", "1") {|s| s.platform = pl }
+    a_b_1 = util_spec "a-b", "1"
+    a_b_1_platform = util_spec("a-b", "1") {|s| s.platform = pl }
+
+    a_b_1_1 = util_spec "a-b-1", "1"
+    a_b_1_1_platform = util_spec("a-b-1", "1") {|s| s.platform = pl }
+
+    install_specs(a1, a1_pre, a_1_platform, a_b_1, a_b_1_platform,
+                  a_b_1_1, a_b_1_1_platform)
+
+    assert_equal [a1], Gem::Specification.find_all_by_full_name("a-1")
+    assert_equal [a1_pre], Gem::Specification.find_all_by_full_name("a-1.0.0.pre.1")
+    assert_equal [a_1_platform], Gem::Specification.find_all_by_full_name("a-1-x86-linux")
+    assert_equal [a_b_1_1], Gem::Specification.find_all_by_full_name("a-b-1-1")
+    assert_equal [a_b_1_1_platform], Gem::Specification.find_all_by_full_name("a-b-1-1-x86-linux")
+
+    assert_equal [], Gem::Specification.find_all_by_full_name("monkeys")
+    assert_equal [], Gem::Specification.find_all_by_full_name("a-1-foo")
+  end
+
   def test_find_by_name
     install_specs util_spec "a"
     install_specs util_spec "a", 1
@@ -3357,9 +3489,16 @@ end
     assert Gem::Specification.find_by_name "a", "1"
     assert Gem::Specification.find_by_name "a", ">1"
 
-    assert_raises Gem::LoadError do
+    assert_raises Gem::MissingSpecError do
       Gem::Specification.find_by_name "monkeys"
     end
+  end
+
+  def test_find_by_name_with_only_prereleases
+    q = util_spec "q", "2.a"
+    install_specs q
+
+    assert Gem::Specification.find_by_name "q"
   end
 
   def test_find_by_name_prerelease
@@ -3371,7 +3510,7 @@ end
 
     assert Gem::Specification.find_by_name "b"
 
-    assert_raises Gem::LoadError do
+    assert_raises Gem::MissingSpecVersionError do
       Gem::Specification.find_by_name "b", "1"
     end
 

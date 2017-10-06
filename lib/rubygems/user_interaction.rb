@@ -1,13 +1,11 @@
+# frozen_string_literal: true
 #--
 # Copyright 2006 by Chad Fowler, Rich Kilmer, Jim Weirich and others.
 # All rights reserved.
 # See LICENSE.txt for permissions.
 #++
 
-begin
-  require 'io/console'
-rescue LoadError
-end
+require 'rubygems/util'
 
 ##
 # Module that defines the default UserInteraction.  Any class including this
@@ -311,12 +309,21 @@ class Gem::StreamUI
     password
   end
 
-  if IO.method_defined?(:noecho) then
-    def _gets_noecho
-      @ins.noecho {@ins.gets}
+  def require_io_console
+    @require_io_console ||= begin
+      begin
+        require 'io/console'
+      rescue LoadError
+      end
+      true
     end
-  elsif Gem.win_platform?
-    def _gets_noecho
+  end
+
+  def _gets_noecho
+    require_io_console
+    if IO.method_defined?(:noecho) then
+      @ins.noecho {@ins.gets}
+    elsif Gem.win_platform?
       require "Win32API"
       password = ''
 
@@ -329,9 +336,7 @@ class Gem::StreamUI
         end
       end
       password
-    end
-  else
-    def _gets_noecho
+    else
       system "stty -echo"
       begin
         @ins.gets
@@ -675,13 +680,8 @@ class Gem::SilentUI < Gem::StreamUI
   def initialize
     reader, writer = nil, nil
 
-    begin
-      reader = File.open('/dev/null', 'r')
-      writer = File.open('/dev/null', 'w')
-    rescue Errno::ENOENT
-      reader = File.open('nul', 'r')
-      writer = File.open('nul', 'w')
-    end
+    reader = File.open(Gem::Util::NULL_DEVICE, 'r')
+    writer = File.open(Gem::Util::NULL_DEVICE, 'w')
 
     super reader, writer, writer, false
   end
@@ -700,4 +700,3 @@ class Gem::SilentUI < Gem::StreamUI
     SilentProgressReporter.new(@outs, *args)
   end
 end
-

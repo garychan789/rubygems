@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 ##
 # A set of gems for installation sourced from remote sources and local .gem
 # files
@@ -40,6 +41,7 @@ class Gem::Resolver::InstallerSet < Gem::Resolver::Set
     @ignore_dependencies = false
     @ignore_installed    = false
     @local               = {}
+    @local_source        = Gem::Source::Local.new
     @remote_set          = Gem::Resolver::BestSet.new
     @specs               = {}
   end
@@ -135,12 +137,14 @@ class Gem::Resolver::InstallerSet < Gem::Resolver::Set
 
       res.concat matching_local
 
-      local_source = Gem::Source::Local.new
-
-      if local_spec = local_source.find_gem(name, dep.requirement) then
-        res << Gem::Resolver::IndexSpecification.new(
-          self, local_spec.name, local_spec.version,
-          local_source, local_spec.platform)
+      begin
+        if local_spec = @local_source.find_gem(name, dep.requirement) then
+          res << Gem::Resolver::IndexSpecification.new(
+            self, local_spec.name, local_spec.version,
+            @local_source, local_spec.platform)
+        end
+      rescue Gem::Package::FormatError
+        # ignore
       end
     end
 
@@ -189,7 +193,7 @@ class Gem::Resolver::InstallerSet < Gem::Resolver::Set
   # Has a local gem for +dep_name+ been added to this set?
 
   def local? dep_name # :nodoc:
-    spec, = @local[dep_name]
+    spec, _ = @local[dep_name]
 
     spec
   end
@@ -221,4 +225,3 @@ class Gem::Resolver::InstallerSet < Gem::Resolver::Set
   end
 
 end
-

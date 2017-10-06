@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'tsort'
 
 ##
@@ -77,6 +78,11 @@ class Gem::RequestSet
   attr_reader :vendor_set # :nodoc:
 
   ##
+  # The set of source gems imported via load_gemdeps.
+
+  attr_reader :source_set
+
+  ##
   # Creates a RequestSet for a list of Gem::Dependency objects, +deps+.  You
   # can then #resolve and #install the resolved list of dependencies.
   #
@@ -105,6 +111,7 @@ class Gem::RequestSet
     @sorted              = nil
     @specs               = nil
     @vendor_set          = nil
+    @source_set          = nil
 
     yield self if block_given?
   end
@@ -142,7 +149,6 @@ class Gem::RequestSet
       return requests
     end
 
-    cache_dir = options[:cache_dir] || Gem.dir
     @prerelease = options[:prerelease]
 
     requests = []
@@ -157,13 +163,28 @@ class Gem::RequestSet
         end
       end
 
-      path = req.download cache_dir
+      spec =
+        begin
+          req.spec.install options do |installer|
+            yield req, installer if block_given?
+          end
+        rescue Gem::RuntimeRequirementNotMetError => e
+          recent_match = req.spec.set.find_all(req.request).sort_by(&:version).reverse_each.find do |s|
+            s = s.spec
+            s.required_ruby_version.satisfied_by?(Gem.ruby_version) && s.required_rubygems_version.satisfied_by?(Gem.rubygems_version)
+          end
+          if recent_match
+            suggestion = "The last version of #{req.request} to support your Ruby & RubyGems was #{recent_match.version}. Try installing it with `gem install #{recent_match.name} -v #{recent_match.version}`"
+            suggestion += " and then running the current command again" unless @always_install.include?(req.spec.spec)
+          else
+            suggestion = "There are no versions of #{req.request} compatible with your Ruby & RubyGems"
+            suggestion += ". Maybe try installing an older version of the gem you're looking for?" unless @always_install.include?(req.spec.spec)
+          end
+          e.suggestion = suggestion
+          raise
+        end
 
-      inst = Gem::Installer.at path, options
-
-      yield req, inst if block_given?
-
-      requests << inst.install
+      requests << spec
     end
 
     return requests if options[:gemdeps]
@@ -271,10 +292,11 @@ class Gem::RequestSet
   def load_gemdeps path, without_groups = [], installing = false
     @git_set    = Gem::Resolver::GitSet.new
     @vendor_set = Gem::Resolver::VendorSet.new
+    @source_set = Gem::Resolver::SourceSet.new
 
     @git_set.root_dir = @install_dir
 
-    lock_file = "#{File.expand_path(path)}.lock".untaint
+    lock_file = "#{File.expand_path(path)}.lock".dup.untaint
     begin
       tokenizer = Gem::RequestSet::Lockfile::Tokenizer.from_file lock_file
       parser = tokenizer.make_parser self, []
@@ -338,6 +360,7 @@ class Gem::RequestSet
     @sets << set
     @sets << @git_set
     @sets << @vendor_set
+    @sets << @source_set
 
     set = Gem::Resolver.compose_sets(*@sets)
     set.remote = @remote

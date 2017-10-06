@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems/command'
 require 'rubygems/local_remote_options'
 require 'rubygems/gemcutter_utilities'
@@ -32,7 +33,8 @@ command.  For further discussion see the help for the yank command.
     add_key_option
 
     add_option('--host HOST',
-               'Push to another gemcutter-compatible host') do |value, options|
+               'Push to another gemcutter-compatible host',
+               '  (e.g. https://rubygems.org)') do |value, options|
       options[:host] = value
     end
 
@@ -75,12 +77,16 @@ You can upgrade or downgrade to the latest release version with:
       @host = gem_data.spec.metadata['default_gem_server']
     end
 
-    # Always include this, even if it's nil
-    args << @host
+    push_host = nil
 
     if gem_data.spec.metadata.has_key?('allowed_push_host')
-      args << gem_data.spec.metadata['allowed_push_host']
+      push_host = gem_data.spec.metadata['allowed_push_host']
     end
+
+    @host ||= push_host
+
+    # Always include @host, even if it's nil
+    args += [ @host, push_host ]
 
     say "Pushing gem to #{@host || Gem.host}..."
 

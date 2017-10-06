@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 # TODO: $SAFE = 1
 
 begin
@@ -24,6 +25,7 @@ unless Gem::Dependency.new('rdoc', '>= 3.10').matching_specs.empty?
   gem 'json'
 end
 
+require 'bundler'
 require 'minitest/autorun'
 
 require 'rubygems/deprecate'
@@ -221,13 +223,23 @@ class Gem::TestCase < MiniTest::Unit::TestCase
     @orig_gem_vendor = ENV['GEM_VENDOR']
     @orig_gem_spec_cache = ENV['GEM_SPEC_CACHE']
     @orig_rubygems_gemdeps = ENV['RUBYGEMS_GEMDEPS']
+    @orig_bundle_gemfile   = ENV['BUNDLE_GEMFILE']
     @orig_rubygems_host = ENV['RUBYGEMS_HOST']
+    ENV.keys.find_all { |k| k.start_with?('GEM_REQUIREMENT_') }.each do |k|
+      ENV.delete k
+    end
+    @orig_gem_env_requirements = ENV.to_hash
 
     ENV['GEM_VENDOR'] = nil
 
     @current_dir = Dir.pwd
     @fetcher     = nil
-    @ui          = Gem::MockGemUi.new
+
+    Bundler.ui                     = Bundler::UI::Silent.new
+    @ui                            = Gem::MockGemUi.new
+    # This needs to be a new instance since we call use_ui(@ui) when we want to
+    # capture output
+    Gem::DefaultUserInteraction.ui = Gem::MockGemUi.new
 
     tmpdir = File.expand_path Dir.tmpdir
     tmpdir.untaint
@@ -248,6 +260,17 @@ class Gem::TestCase < MiniTest::Unit::TestCase
     # dropped.
     Dir.chdir @tempdir do
       @tempdir = File.expand_path '.'
+      @tempdir.untaint
+    end
+
+    # This makes the tempdir consistent on Windows.
+    # Dir.tmpdir may return short path name, but Dir[Dir.tmpdir] returns long
+    # path name. https://bugs.ruby-lang.org/issues/10819
+    # File.expand_path or File.realpath doesn't convert path name to long path
+    # name. Only Dir[] (= Dir.glob) works.
+    # Short and long path name is specific to Windows filesystem.
+    if win_platform?
+      @tempdir = Dir[@tempdir][0]
       @tempdir.untaint
     end
 
@@ -276,6 +299,7 @@ class Gem::TestCase < MiniTest::Unit::TestCase
     ENV['HOME'] = @userhome
     Gem.instance_variable_set :@user_home, nil
     Gem.instance_variable_set :@gemdeps, nil
+    Gem.instance_variable_set :@env_requirements_by_name, nil
     Gem.send :remove_instance_variable, :@ruby_version if
       Gem.instance_variables.include? :@ruby_version
 
@@ -306,6 +330,7 @@ class Gem::TestCase < MiniTest::Unit::TestCase
     Gem.loaded_specs.clear
     Gem.clear_default_specs
     Gem::Specification.unresolved_deps.clear
+    Bundler.reset!
 
     Gem.configuration.verbose = true
     Gem.configuration.update_sources = true
@@ -367,11 +392,17 @@ class Gem::TestCase < MiniTest::Unit::TestCase
 
     FileUtils.rm_rf @tempdir unless ENV['KEEP_FILES']
 
+    ENV.clear
+    @orig_gem_env_requirements.each do |k,v|
+      ENV[k] = v
+    end
+
     ENV['GEM_HOME']   = @orig_gem_home
     ENV['GEM_PATH']   = @orig_gem_path
     ENV['GEM_VENDOR'] = @orig_gem_vendor
     ENV['GEM_SPEC_CACHE'] = @orig_gem_spec_cache
     ENV['RUBYGEMS_GEMDEPS'] = @orig_rubygems_gemdeps
+    ENV['BUNDLE_GEMFILE']   = @orig_bundle_gemfile
     ENV['RUBYGEMS_HOST'] = @orig_rubygems_host
 
     Gem.ruby = @orig_ruby if @orig_ruby
@@ -388,6 +419,7 @@ class Gem::TestCase < MiniTest::Unit::TestCase
 
     Gem::Specification._clear_load_cache
     Gem::Specification.unresolved_deps.clear
+    Gem::refresh
   end
 
   def common_installer_setup
@@ -462,7 +494,7 @@ class Gem::TestCase < MiniTest::Unit::TestCase
 
       system @git, 'add', gemspec
       system @git, 'commit', '-a', '-m', 'a non-empty commit message', '--quiet'
-      head = Gem::Util.popen('git', 'rev-parse', 'master').strip
+      head = Gem::Util.popen(@git, 'rev-parse', 'master').strip
     end
 
     return name, git_spec.version, directory, head
@@ -541,7 +573,7 @@ class Gem::TestCase < MiniTest::Unit::TestCase
   # Enables pretty-print for all tests
 
   def mu_pp(obj)
-    s = ''
+    s = String.new
     s = PP.pp obj, s
     s = s.force_encoding(Encoding.default_external) if defined? Encoding
     s.chomp
@@ -569,7 +601,7 @@ class Gem::TestCase < MiniTest::Unit::TestCase
   def write_file(path)
     path = File.join @gemhome, path unless Pathname.new(path).absolute?
     dir = File.dirname path
-    FileUtils.mkdir_p dir
+    FileUtils.mkdir_p dir unless File.directory? dir
 
     open path, 'wb' do |io|
       yield io if block_given?
@@ -1306,11 +1338,21 @@ Also, a list:
   def vendor_gem name = 'a', version = 1
     directory = File.join 'vendor', name
 
+    FileUtils.mkdir_p directory
+
+    save_gemspec name, version, directory
+  end
+
+  ##
+  # create_gemspec creates gem specification in given +directory+ or '.'
+  # for the given +name+ and +version+.
+  #
+  # Yields the +specification+ to the block, if given
+
+  def save_gemspec name = 'a', version = 1, directory = '.'
     vendor_spec = Gem::Specification.new name, version do |specification|
       yield specification if block_given?
     end
-
-    FileUtils.mkdir_p directory
 
     open File.join(directory, "#{name}.gemspec"), 'w' do |io|
       io.write vendor_spec.to_ruby
@@ -1466,6 +1508,8 @@ end
 begin
   gem 'rdoc'
   require 'rdoc'
+
+  require 'rubygems/rdoc'
 rescue LoadError, Gem::LoadError
 end
 
@@ -1482,3 +1526,4 @@ tmpdirs << (ENV['GEM_PATH'] = Dir.mktmpdir("path"))
 pid = $$
 END {tmpdirs.each {|dir| Dir.rmdir(dir)} if $$ == pid}
 Gem.clear_paths
+Gem.loaded_specs.clear

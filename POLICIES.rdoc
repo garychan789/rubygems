@@ -1,3 +1,16 @@
+== Pull Requests
+
+Contributions to RubyGems are made via GitHub pull requests, which must be
+approved by a project committer other than the author. To approve a PR, a
+maintainer can leave a comment including the text "@bundlerbot r+", indicating that
+they have reviewed the PR and approve it. Bundlerbot will then
+automatically create a merge commit, test the merge, and land the PR if the
+merge commit passes the tests.
+
+This process guarantees that our release branches always have passing tests,
+and reduces siloing of information to a single contributor. For a full list of
+possible commands, see {the Bundlerbot documentation}[https://bundlerbot-homu.herokuapp.com/].
+
 == Long-Term Support
 
 RubyGems long-term support policy will be similar to and follow the Ruby
@@ -19,7 +32,7 @@ receive any updates.
 Security releases will be made for RubyGems version series that were included
 in a Ruby release.
 
-For example, RubyGems 2.0.x will recieve security fixes until Ruby 2.0.0
+For example, RubyGems 2.0.x will receive security fixes until Ruby 2.0.0
 reaches end-of-life.
 
 == Release Policies

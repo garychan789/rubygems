@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 #--
 # Copyright 2006 by Chad Fowler, Rich Kilmer, Jim Weirich and others.
 # All rights reserved.
@@ -103,7 +104,7 @@ class Gem::DependencyList
   end
 
   def inspect # :nodoc:
-    "#<%s:0x%x %p>" % [self.class, object_id, map { |s| s.full_name }]
+    "%s %p>" % [super[0..-2], map { |s| s.full_name }]
   end
 
   ##

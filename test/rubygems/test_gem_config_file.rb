@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems/test_case'
 require 'rubygems/config_file'
 
@@ -60,12 +61,11 @@ class TestGemConfigFile < Gem::TestCase
     end
 
     util_config_file
-
     assert_equal true, @cfg.backtrace
     assert_equal 10, @cfg.bulk_threshold
     assert_equal false, @cfg.verbose
     assert_equal false, @cfg.update_sources
-    assert_equal %w[http://more-gems.example.com], Gem.sources
+    assert_equal %w[http://more-gems.example.com], @cfg.sources
     assert_equal '--wrappers', @cfg[:install]
     assert_equal(['/usr/ruby/1.8/lib/ruby/gems/1.8', '/var/ruby/1.8/gem_home'],
                  @cfg.path)

@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems'
 require 'rubygems/dependency_list'
 require 'rubygems/package'
@@ -6,6 +7,7 @@ require 'rubygems/spec_fetcher'
 require 'rubygems/user_interaction'
 require 'rubygems/source'
 require 'rubygems/available_set'
+require 'rubygems/deprecate'
 
 ##
 # Installs a gem along with all its dependencies from local and remote gems.
@@ -44,6 +46,9 @@ class Gem::DependencyInstaller
   # TODO remove, no longer used
 
   attr_reader :gems_to_install # :nodoc:
+
+  extend Gem::Deprecate
+  deprecate :gems_to_install, :none, 2016, 10
 
   ##
   # List of gems installed by #install in alphabetic order

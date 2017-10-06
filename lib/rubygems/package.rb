@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# frozen_string_literal: true
 #--
 # Copyright (C) 2004 Mauricio Julio Fernández Pradier
 # See LICENSE.txt for additional licensing information.
@@ -58,7 +59,7 @@ class Gem::Package
       if source
         @path = source.path
 
-        message << " in #{path}" if path
+        message = message + " in #{path}" if path
       end
 
       super message
@@ -210,7 +211,9 @@ class Gem::Package
       stat = File.lstat file
 
       if stat.symlink?
-        tar.add_symlink file, File.readlink(file), stat.mode
+        relative_dir = File.dirname(file).sub("#{Dir.pwd}/", '')
+        target_path = File.join(relative_dir, File.readlink(file))
+        tar.add_symlink file, target_path, stat.mode
       end
 
       next unless stat.file?
@@ -382,7 +385,7 @@ EOM
           FileUtils.chmod entry.header.mode, destination
         end if entry.file?
 
-        File.symlink(install_location(entry.header.linkname, destination_dir), destination) if entry.symlink?
+        File.symlink(entry.header.linkname, destination) if entry.symlink?
 
         verbose destination
       end

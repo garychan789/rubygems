@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems/command'
 require 'rubygems/local_remote_options'
 require 'rubygems/spec_fetcher'
@@ -85,7 +86,7 @@ is too hard to use.
       name = Array(options[:name])
     else
       args = options[:args].to_a
-      name = options[:exact] ? args : args.map{|arg| /#{arg}/i }
+      name = options[:exact] ? args.map{|arg| /\A#{Regexp.escape(arg)}\Z/ } : args.map{|arg| /#{arg}/i }
     end
 
     prerelease = options[:prerelease]
@@ -225,7 +226,7 @@ is too hard to use.
         end
       end
 
-      output << make_entry(matching_tuples, platforms)
+      output << clean_text(make_entry(matching_tuples, platforms))
     end
   end
 
@@ -246,7 +247,7 @@ is too hard to use.
     spec_summary     entry, spec
   end
 
-  def entry_versions entry, name_tuples, platforms
+  def entry_versions entry, name_tuples, platforms, specs
     return unless options[:versions]
 
     list =
@@ -254,13 +255,21 @@ is too hard to use.
         name_tuples.map { |n| n.version }.uniq
       else
         platforms.sort.reverse.map do |version, pls|
-          if pls == [Gem::Platform::RUBY] then
-            version
-          else
-            ruby = pls.delete Gem::Platform::RUBY
-            platform_list = [ruby, *pls.sort].compact
-            "#{version} #{platform_list.join ' '}"
+          out = version.to_s
+
+          if options[:domain] == :local
+            default = specs.any? do |s|
+              !s.is_a?(Gem::Source) && s.version == version && s.default_gem?
+            end
+            out = "default: #{out}" if default
           end
+
+          if pls != [Gem::Platform::RUBY] then
+            platform_list = [pls.delete(Gem::Platform::RUBY), *pls.sort].compact
+            out = platform_list.unshift(out).join(' ')
+          end
+
+          out
         end
       end
 
@@ -276,14 +285,14 @@ is too hard to use.
 
     entry = [name_tuples.first.name]
 
-    entry_versions entry, name_tuples, platforms
+    entry_versions entry, name_tuples, platforms, specs
     entry_details  entry, detail_tuple, specs, platforms
 
     entry.join
   end
 
   def spec_authors entry, spec
-    authors = "Author#{spec.authors.length > 1 ? 's' : ''}: "
+    authors = "Author#{spec.authors.length > 1 ? 's' : ''}: ".dup
     authors << spec.authors.join(', ')
     entry << format_text(authors, 68, 4)
   end
@@ -297,7 +306,7 @@ is too hard to use.
   def spec_license entry, spec
     return if spec.license.nil? or spec.license.empty?
 
-    licenses = "License#{spec.licenses.length > 1 ? 's' : ''}: "
+    licenses = "License#{spec.licenses.length > 1 ? 's' : ''}: ".dup
     licenses << spec.licenses.join(', ')
     entry << "\n" << format_text(licenses, 68, 4)
   end
@@ -343,8 +352,8 @@ is too hard to use.
   end
 
   def spec_summary entry, spec
-    entry << "\n\n" << format_text(spec.summary, 68, 4)
+    summary = truncate_text(spec.summary, "the summary for #{spec.full_name}")
+    entry << "\n\n" << format_text(summary, 68, 4)
   end
 
 end
-

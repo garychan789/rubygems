@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 #--
 # Copyright 2006 by Chad Fowler, Rich Kilmer, Jim Weirich and others.
 # All rights reserved.
@@ -53,7 +54,7 @@ class Gem::ConfigFile
   # For Ruby implementers to set configuration defaults.  Set in
   # rubygems/defaults/#{RUBY_ENGINE}.rb
 
-  PLATFORM_DEFAULTS = {}
+  PLATFORM_DEFAULTS = Gem.platform_defaults
 
   # :stopdoc:
 
@@ -143,6 +144,10 @@ class Gem::ConfigFile
   attr_accessor :ssl_ca_cert
 
   ##
+  # sources to look for gems
+  attr_accessor :sources
+
+  ##
   # Path name of directory or file of openssl client certificate, used for remote https connection with client authentication
 
   attr_reader :ssl_client_cert
@@ -215,6 +220,7 @@ class Gem::ConfigFile
     @update_sources             = @hash[:update_sources]             if @hash.key? :update_sources
     @verbose                    = @hash[:verbose]                    if @hash.key? :verbose
     @disable_default_gem_server = @hash[:disable_default_gem_server] if @hash.key? :disable_default_gem_server
+    @sources                    = @hash[:sources]                    if @hash.key? :sources
 
     @ssl_verify_mode  = @hash[:ssl_verify_mode]  if @hash.key? :ssl_verify_mode
     @ssl_ca_cert      = @hash[:ssl_ca_cert]      if @hash.key? :ssl_ca_cert
@@ -223,7 +229,6 @@ class Gem::ConfigFile
     @api_keys         = nil
     @rubygems_api_key = nil
 
-    Gem.sources = @hash[:sources] if @hash.key? :sources
     handle_arguments arg_list
   end
 
@@ -305,9 +310,18 @@ if you believe they were disclosed to a third party.
   # Sets the RubyGems.org API key to +api_key+
 
   def rubygems_api_key= api_key
+    set_api_key :rubygems_api_key, api_key
+
+    @rubygems_api_key = api_key
+  end
+
+  ##
+  # Set a specific host's API key to +api_key+
+
+  def set_api_key host, api_key
     check_credentials_permissions
 
-    config = load_file(credentials_path).merge(:rubygems_api_key => api_key)
+    config = load_file(credentials_path).merge(host => api_key)
 
     dirname = File.dirname credentials_path
     Dir.mkdir(dirname) unless File.exist? dirname
@@ -319,7 +333,16 @@ if you believe they were disclosed to a third party.
       f.write config.to_yaml
     end
 
-    @rubygems_api_key = api_key
+    load_api_keys # reload
+  end
+
+  ##
+  # Remove the +~/.gem/credentials+ file to clear all the current sessions.
+
+  def unset_api_key!
+    return false unless File.exist?(credentials_path)
+
+    File.delete(credentials_path)
   end
 
   def load_file(filename)
@@ -405,31 +428,11 @@ if you believe they were disclosed to a third party.
   # to_yaml only overwrites things you can't override on the command line.
   def to_yaml # :nodoc:
     yaml_hash = {}
-    yaml_hash[:backtrace] = if @hash.key?(:backtrace)
-                              @hash[:backtrace]
-                            else
-                              DEFAULT_BACKTRACE
-                            end
-
-    yaml_hash[:bulk_threshold] = if @hash.key?(:bulk_threshold)
-                                   @hash[:bulk_threshold]
-                                 else
-                                   DEFAULT_BULK_THRESHOLD
-                                 end
-
+    yaml_hash[:backtrace] = @hash.fetch(:backtrace, DEFAULT_BACKTRACE)
+    yaml_hash[:bulk_threshold] = @hash.fetch(:bulk_threshold, DEFAULT_BULK_THRESHOLD)
     yaml_hash[:sources] = Gem.sources.to_a
-
-    yaml_hash[:update_sources] = if @hash.key?(:update_sources)
-                                   @hash[:update_sources]
-                                 else
-                                   DEFAULT_UPDATE_SOURCES
-                                 end
-
-    yaml_hash[:verbose] = if @hash.key?(:verbose)
-                            @hash[:verbose]
-                          else
-                            DEFAULT_VERBOSITY
-                          end
+    yaml_hash[:update_sources] = @hash.fetch(:update_sources, DEFAULT_UPDATE_SOURCES)
+    yaml_hash[:verbose] = @hash.fetch(:verbose, DEFAULT_VERBOSITY)
 
     yaml_hash[:ssl_verify_mode] =
       @hash[:ssl_verify_mode] if @hash.key? :ssl_verify_mode

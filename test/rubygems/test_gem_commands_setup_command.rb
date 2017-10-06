@@ -1,4 +1,5 @@
 # coding: UTF-8
+# frozen_string_literal: true
 
 require 'rubygems/test_case'
 require 'rubygems/commands/setup_command'
@@ -13,16 +14,23 @@ class TestGemCommandsSetupCommand < Gem::TestCase
     @cmd.options[:prefix] = @install_dir
 
     FileUtils.mkdir_p 'bin'
-    FileUtils.mkdir_p 'lib/rubygems/ssl_certs'
+    FileUtils.mkdir_p 'lib/rubygems/ssl_certs/rubygems.org'
 
     open 'bin/gem',                   'w' do |io| io.puts '# gem'          end
     open 'lib/rubygems.rb',           'w' do |io| io.puts '# rubygems.rb'  end
     open 'lib/rubygems/test_case.rb', 'w' do |io| io.puts '# test_case.rb' end
-    open 'lib/rubygems/ssl_certs/foo.pem', 'w' do |io| io.puts 'PEM'       end
+    open 'lib/rubygems/ssl_certs/rubygems.org/foo.pem', 'w' do |io| io.puts 'PEM'       end
+
+    FileUtils.mkdir_p 'bundler/exe'
+    FileUtils.mkdir_p 'bundler/lib/bundler'
+
+    open 'bundler/exe/bundle',        'w' do |io| io.puts '# bundle'       end
+    open 'bundler/lib/bundler.rb',    'w' do |io| io.puts '# bundler.rb'   end
+    open 'bundler/lib/bundler/b.rb',  'w' do |io| io.puts '# b.rb'         end
   end
 
   def test_pem_files_in
-    assert_equal %w[rubygems/ssl_certs/foo.pem],
+    assert_equal %w[rubygems/ssl_certs/rubygems.org/foo.pem],
                  @cmd.pem_files_in('lib').sort
   end
 
@@ -38,13 +46,19 @@ class TestGemCommandsSetupCommand < Gem::TestCase
       @cmd.install_lib dir
 
       assert_path_exists File.join(dir, 'rubygems.rb')
-      assert_path_exists File.join(dir, 'rubygems/ssl_certs/foo.pem')
+      assert_path_exists File.join(dir, 'rubygems/ssl_certs/rubygems.org/foo.pem')
+
+      if Gem::USE_BUNDLER_FOR_GEMDEPS
+        assert_path_exists File.join(dir, 'bundler.rb')
+        assert_path_exists File.join(dir, 'bundler/b.rb')
+      end
     end
   end
 
   def test_remove_old_lib_files
     lib                   = File.join @install_dir, 'lib'
     lib_rubygems          = File.join lib, 'rubygems'
+    lib_bundler           = File.join lib, 'bundler'
     lib_rubygems_defaults = File.join lib_rubygems, 'defaults'
 
     securerandom_rb    = File.join lib, 'securerandom.rb'
@@ -54,13 +68,16 @@ class TestGemCommandsSetupCommand < Gem::TestCase
 
     old_builder_rb     = File.join lib_rubygems, 'builder.rb'
     old_format_rb      = File.join lib_rubygems, 'format.rb'
+    old_bundler_c_rb   = File.join lib_bundler,  'c.rb'
 
     FileUtils.mkdir_p lib_rubygems_defaults
+    FileUtils.mkdir_p lib_bundler
 
     open securerandom_rb,    'w' do |io| io.puts '# securerandom.rb'     end
 
     open old_builder_rb,     'w' do |io| io.puts '# builder.rb'          end
     open old_format_rb,      'w' do |io| io.puts '# format.rb'           end
+    open old_bundler_c_rb,   'w' do |io| io.puts '# c.rb'                end
 
     open engine_defaults_rb, 'w' do |io| io.puts '# jruby.rb'            end
     open os_defaults_rb,     'w' do |io| io.puts '# operating_system.rb' end
@@ -69,6 +86,7 @@ class TestGemCommandsSetupCommand < Gem::TestCase
 
     refute_path_exists old_builder_rb
     refute_path_exists old_format_rb
+    refute_path_exists old_bundler_c_rb if Gem::USE_BUNDLER_FOR_GEMDEPS
 
     assert_path_exists securerandom_rb
     assert_path_exists engine_defaults_rb
@@ -133,4 +151,3 @@ class TestGemCommandsSetupCommand < Gem::TestCase
   end
 
 end
-

@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'rubygems/command'
 require 'rubygems/remote_fetcher'
 require 'rubygems/spec_fetcher'
@@ -43,7 +44,7 @@ class Gem::Commands::SourcesCommand < Gem::Command
     source = Gem::Source.new source_uri
 
     begin
-      if Gem.sources.include? source_uri then
+      if Gem.sources.include? source then
         say "source #{source_uri} already present in the cache"
       else
         source.load_specs :released
